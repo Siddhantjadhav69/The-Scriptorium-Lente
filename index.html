@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Scriptorium Lente</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Inter and a Serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lora:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfbf7; /* Parchment-like color */
+            color: #3d3b38; /* Dark charcoal */
+        }
+        
+        .font-serif {
+            font-family: 'Lora', serif;
+        }
+
+        .scribe-title {
+            font-family: 'Lora', serif;
+            font-weight: 700;
+            color: #5a4a3a; /* Dark Sepia */
+        }
+
+        .scribe-accent {
+            color: #8a6d4f; /* Muted Sepia */
+        }
+
+        .scribe-input {
+            border: 1px solid #dcd3c8;
+            background-color: #fdfcf9;
+            transition: all 0.2s ease;
+        }
+        .scribe-input:focus {
+            outline: none;
+            border-color: #8a6d4f;
+            box-shadow: 0 0 0 2px #c9bba9;
+        }
+
+        .scribe-button {
+            background-color: #5a4a3a; /* Dark Sepia */
+            color: #ffffff;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s ease;
+        }
+        .scribe-button:hover {
+            background-color: #42362a;
+        }
+        .scribe-button:disabled {
+            background-color: #a19a92;
+            cursor: not-allowed;
+        }
+
+        .story-card {
+            background-color: #ffffff;
+            border: 1px solid #e7e0d8;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+
+        .story-text {
+            font-family: 'Lora', serif;
+            line-height: 1.7;
+            font-size: 1.125rem; /* 18px */
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+
+        <!-- Header -->
+        <header class="text-center my-8 md:my-12">
+            <h1 class="scribe-title text-4xl md:text-5xl">The Scriptorium Lente</h1>
+            <p class="text-lg scribe-accent mt-2">A collaborative story, told one word at a time.</p>
+            
+            <!-- User ID Display -->
+            <div id="user-info" class="mt-4 text-xs text-gray-400 p-2 bg-gray-50 rounded-md inline-block">
+                Loading scribe identity...
+            </div>
+        </header>
+
+        <!-- Error Message Container -->
+        <div id="error-message" class="hidden text-center text-red-600 bg-red-100 p-3 rounded-md mb-6"></div>
+
+        <!-- Plant a Seed (Start New Story) -->
+        <section class="mb-12">
+            <h2 class="scribe-title text-3xl mb-4">Plant a Seed</h2>
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <p class="mb-4 text-gray-600">Your first word will begin a new tale. Once spoken, it will be carried to other scribes. Choose it wisely.</p>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="new-story-input" placeholder="The first word..." class="flex-grow scribe-input rounded-md px-3 py-2">
+                    <button id="start-story-button" class="scribe-button">Begin New Story</button>
+                </div>
+            </div>
+        </section>
+
+        
+
+        <!-- The Tapestry of Tales (Story List) -->
+        <section>
+            <h2 class="scribe-title text-3xl mb-6">The Tapestry of Tales</h2>
+            
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="text-center py-10">
+                <svg class="animate-spin h-8 w-8 scribe-accent mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 scribe-accent">Unrolling the scrolls...</p>
+            </div>
+
+            <!-- Story List Container -->
+            <div id="story-list" class="space-y-6">
+                <!-- Stories will be injected here by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 py-6 border-t border-gray-200">
+            <p class="text-sm text-gray-400">The Scriptorium is a place of patience. Embrace the slowness.</p>
+        </footer>
+
+    </div>
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            addDoc, 
+            updateDoc, 
+            onSnapshot, 
+            collection, 
+            query, 
+            serverTimestamp,
+            setLogLevel
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Global Variables ---
+        let db, auth;
+        let currentUserId = null;
+        let storyCollectionRef;
+
+        const storyList = document.getElementById('story-list');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const newStoryInput = document.getElementById('new-story-input');
+        const startStoryButton = document.getElementById('start-story-button');
+        const userInfo = document.getElementById('user-info');
+        const errorMessage = document.getElementById('error-message');
+
+        // --- Firebase Initialization ---
+        
+        // --- Firebase Initialization ---
+        
+        async function initFirebase() {
+            try {
+                // Set log level for debugging
+                setLogLevel('Debug');
+                
+                // 1. PASTE YOUR FIREBASE CONFIG HERE
+                const firebaseConfig = {
+                  apiKey: "AIzaSyATJ4OIl4Xyb3l-ovqp45uAN0C5VT0QCOo",
+                  authDomain: "project01-448411.firebaseapp.com",
+                  projectId: "project01-448411",
+                  storageBucket: "project01-448411.firebasestorage.app",
+                  messagingSenderId: "702790707252",
+                  appId: "1:702790707252:web:64836cad078e1057fe8261"
+                };
+
+                // 2. Initialize Firebase
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 3. Set up collection reference (Simplified for deployment)
+                storyCollectionRef = collection(db, "stories");
+
+                // 4. Set up Auth Listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        console.log("Scribe identified:", currentUserId);
+                        userInfo.textContent = `Your Scribe ID: ${currentUserId}`;
+                        // Now that we are authenticated, set up the story listener
+                        setupStoryListener();
+                    } else {
+                        currentUserId = null;
+                        userInfo.textContent = "Connecting to Scriptorium...";
+                        console.log("No user signed in.");
+                    }
+                });
+
+                // 5. Sign In
+                console.log("Signing in anonymously...");
+                await signInAnonymously(auth);
+
+                // 6. Add event listeners for UI
+                startStoryButton.addEventListener('click', handleStartStory);
+
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showError("Failed to connect to the Scriptorium. Please refresh.");
+            }
+        }
+
+         // --- Story Listener (Real-time) ---  <-- FUNCTION WAS MISSING
+        
+        function setupStoryListener() {
+            // Query to get stories
+            const q = query(storyCollectionRef); // Removed orderBy to avoid index issues
+
+            onSnapshot(q, (snapshot) => {
+                loadingSpinner.style.display = 'none';
+                storyList.innerHTML = ''; // Clear existing list
+                
+                let stories = [];
+                snapshot.forEach((doc) => {
+                    stories.push({ id: doc.id, data: doc.data() });
+                });
+
+                // Sort stories in memory (descending by lastWordAt)
+                stories.sort((a, b) => {
+                    const timeA = a.data.lastWordAt?.toMillis() || 0;
+                    const timeB = b.data.lastWordAt?.toMillis() || 0;
+                    return timeB - timeA;
+                });
+
+                if (stories.length === 0) {
+                    storyList.innerHTML = '<p class="text-center scribe-accent">No tales have been told. Be the first to plant a seed.</p>';
+                } else {
+                    stories.forEach(renderStory);
+                }
+            }, (error) => {
+                loadingSpinner.style.display = 'none';
+                console.error("Error listening to stories:", error);
+                showError("Lost connection to the Scriptorium's library.");
+            });
+        }
+
+        // --- Render Functions ---  <-- FUNCTION WAS MISSING
+
+        function renderStory(story) {
+            const storyData = story.data;
+            const storyId = story.id;
+            
+            // Check if current user was the last to contribute
+            const isLastContributor = (storyData.lastUserId === currentUserId);
+
+            // Join words into a story string
+            const storyText = storyData.words.join(' ') + '...';
+
+            const storyCard = document.createElement('div');
+            storyCard.className = 'story-card p-4 md:p-6';
+
+            storyCard.innerHTML = `
+                <p class="story-text text-gray-800 mb-4">${storyText}</p>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="input-${storyId}" placeholder="Add one word..." 
+                           class="flex-grow scribe-input rounded-md px-3 py-2" 
+                           ${isLastContributor ? 'disabled' : ''}>
+                    <button id="button-${storyId}" class="scribe-button" 
+                            ${isLastContributor ? 'disabled' : ''}>
+                        Add Your Word
+                    </button>
+                </div>
+                ${isLastContributor ? '<p class="text-xs scribe-accent mt-2">Waiting for another scribe...</p>' : ''}
+            `;
+
+            storyList.appendChild(storyCard);
+            if (!isLastContributor) {
+                const addButton = storyCard.querySelector(`#button-${storyId}`);
+                const addInput = storyCard.querySelector(`#input-${storyId}`);
+
+                addButton.addEventListener('click', () => {
+                    handleAddWord(storyId, storyData.words, addInput.value);
+                });
+
+                addInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        handleAddWord(storyId, storyData.words, addInput.value);
+                    }
+                });
+            }
+        }
+
+
+        // --- Event Handlers ---
+
+        async function handleStartStory() {
+            const firstWord = validateWord(newStoryInput.value);
+            if (!firstWord) return;
+
+            startStoryButton.disabled = true;
+            startStoryButton.textContent = "Planting...";
+
+            try {
+                await addDoc(storyCollectionRef, {
+                    words: [firstWord],
+                    lastWordAt: serverTimestamp(),
+                    lastUserId: currentUserId
+                });
+                newStoryInput.value = ''; // Clear input on success
+            } catch (error) {
+                console.error("Error starting new story:", error);
+                showError("The seed failed to plant. Please try again.");
+            } finally {
+                startStoryButton.disabled = false;
+                startStoryButton.textContent = "Begin New Story";
+            }
+        }
+
+        async function handleAddWord(storyId, currentWords, newWord) {
+            const validatedWord = validateWord(newWord);
+            if (!validatedWord) return;
+
+            const button = document.getElementById(`button-${storyId}`);
+            const input = document.getElementById(`input-${storyId}`);
+            
+            if(button) button.disabled = true;
+            if(input) input.disabled = true;
+
+            const storyRef = doc(db, "stories", storyId);
+
+            try {
+                await updateDoc(storyRef, {
+                    words: [...currentWords, validatedWord],
+                    lastWordAt: serverTimestamp(),
+                    lastUserId: currentUserId
+                });
+                // Input will be cleared/disabled on the next render
+            } catch (error) {
+                console.error("Error adding word:", error);
+                showError("Your word was lost to the winds. Please try again.");
+                if(button) button.disabled = false;
+                if(input) input.disabled = false;
+            }
+        }
+
+        // --- Utility Functions ---
+
+        function validateWord(word) {
+            word = word.trim();
+            if (!word) {
+                showError("A word cannot be empty.");
+                return null;
+            }
+            if (word.includes(' ')) {
+                showError("Only a single word may be added at a time.");
+                return null;
+            }
+            // Basic sanitization
+            word = word.replace(/[<>{}]/g, '');
+            hideError();
+            return word;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorMessage.classList.add('hidden');
+            errorMessage.textContent = '';
+        }
+
+        // --- Start the App ---
+        initFirebase();
+
+    </script>
+</body>
+</html>
